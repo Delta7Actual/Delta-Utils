@@ -9,14 +9,11 @@
 #include <assert.h>
 #include <stdbool.h>
 
-// Declerations
+
+#ifdef DA_BASE64
 
 size_t b64decode(char *in, size_t len, uint8_t *out);
 size_t b64encode(uint8_t *in, size_t len, char *out);
-
-void md5_digest(uint8_t *data, size_t len, uint8_t out[16]);
-
-#ifdef DA_BASE64
 
 static const __uint8_t b64_dt[256] = {
     ['A'] =  0, ['B'] =  1, ['C'] =  2, ['D'] =  3,
@@ -103,6 +100,8 @@ size_t b64decode(char *in, size_t len, __uint8_t *out) {
 #endif DA_BASE64
 
 #ifdef DA_MD5
+
+void md5_digest(uint8_t *data, size_t len, uint8_t out[16]);
 
 #define AI 0x67452301
 #define BI 0xefcdab89
@@ -357,8 +356,8 @@ void md5_digest(uint8_t *data, size_t len, uint8_t out[16]) {
 #ifdef DA_VECTOR
 
 typedef struct vec_meta_s {
-    uint32_t capacity;
-    uint32_t length;
+    uint32_t  capacity;
+    uint32_t    length;
     uint16_t cell_size;
 } VecMeta;
 
@@ -475,5 +474,144 @@ void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear) {
 }
 
 #endif // DA_VECTOR
+
+
+#ifdef DA_ARGS
+
+typedef enum {
+    DA_ARG_BOL, 
+    DA_ARG_INT, 
+    DA_ARG_DBL, 
+    DA_ARG_STR, 
+    DA_ARG_END
+} ArgType;
+
+typedef struct {
+    const char *s_rep;
+    const char *l_rep;
+    const char  *help;
+    void         *out;
+    ArgType      type;
+    bool       is_req;
+} ArgSpec;
+
+#define ARG_BOOL(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_BOL, (ir) })
+
+#define ARG_INT(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_INT, (ir) })
+
+#define ARG_DOUBLE(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_DBL, (ir) })
+
+#define ARG_STRING(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_STR, (ir) })
+
+#define ARG_END() \
+    ((ArgSpec){NULL, NULL, NULL, NULL, DA_ARG_END, false})
+
+
+bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
+    if (!argument) return false;
+
+    // Check against l_rep
+    if (strncmp(argument, "--", 2) == 0 && l_rep) {
+        const char *arg_name = argument + 2;
+        const char *alias = l_rep;
+
+        while(alias) {
+            const char *next = strchr(alias, ',');
+            size_t len = (next) ? (size_t)(next - alias) : strlen(alias);
+
+            if (strncmp(alias, arg_name, len) == 0 
+                    && (arg_name[len] == '\0' || arg_name[len] == '=')) {
+                return true;
+            }
+
+            alias = (next) ? next + 1 : NULL;
+        }
+    }
+
+    // Check against s_rep
+    else if (strncmp(argument, "-", 1) == 0 
+                && s_rep && argument[1] != '\0' 
+                && argument[2] == '\0') {
+                    
+        char arg_char = *(argument + 1);
+        while (*s_rep != '\0') {
+            if (arg_char == *s_rep) {
+                return true;
+            }
+            s_rep++;
+        }
+    }
+
+    // Check whole command
+    else {
+        if (strcmp(argument, l_rep) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void parseArguments(ArgSpec *ctx, int argc, char **argv) {
+    if (!ctx || argc == 1) return;
+
+    for (int i = 1; i < argc; i++) {
+        char *argument = argv[i];
+
+        for (ArgSpec *spec = ctx; spec->type != DA_ARG_END; spec++) {
+            if (__isFlagDec(argument, spec->s_rep, spec->l_rep)) {
+                switch (spec->type) {
+                    case DA_ARG_BOL:
+                        if (spec->out)
+                            *(bool *)spec->out = true;
+                        break;
+                
+                    case DA_ARG_INT: {
+                        if (!spec->out) break;
+                        char *val = strchr(argument, '=');
+                        if (val) {
+                            *(int *)spec->out = atoi(val + 1);
+                        } else if (i + 1 < argc) {
+                            *(int *)spec->out = atoi(argv[++i]);
+                        } else {
+                            fprintf(stderr, "Error: expected integer value after %s\n", argument);
+                        }
+                        break;
+                    }
+                
+                    case DA_ARG_DBL: {
+                        if (!spec->out) break;
+                        char *val = strchr(argument, '=');
+                        if (val) {
+                            *(double *)spec->out = atof(val + 1);
+                        } else if (i + 1 < argc) {
+                            *(double *)spec->out = atof(argv[++i]);
+                        } else {
+                            fprintf(stderr, "Error: expected double value after %s\n", argument);
+                        }
+                        break;
+                    }
+                
+                    case DA_ARG_STR: {
+                        if (!spec->out) break;
+                        if (i + 1 < argc) {
+                            *(char **)spec->out = argv[++i];
+                        } else {
+                            fprintf(stderr, "Error: expected string value after %s\n", argument);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+#endif // DA_ARGS
+
 
 #endif
