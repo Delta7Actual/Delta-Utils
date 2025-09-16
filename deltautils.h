@@ -4,11 +4,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
-
-#include <string.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <string.h>
 #include <ctype.h>
 
 
@@ -17,7 +15,7 @@
 size_t b64Decode(char *in, size_t len, uint8_t *out);
 size_t b64Encode(uint8_t *in, size_t len, char *out);
 
-static const __uint8_t b64_dt[256] = {
+static const uint8_t b64_dt[256] = {
     ['A'] =  0, ['B'] =  1, ['C'] =  2, ['D'] =  3,
     ['E'] =  4, ['F'] =  5, ['G'] =  6, ['H'] =  7,
     ['I'] =  8, ['J'] =  9, ['K'] = 10, ['L'] = 11,
@@ -43,13 +41,13 @@ static const char b64_et[65] =
     "abcdefghijklmnopqrstuvwxyz"
     "0123456789+/";
 
-size_t b64Encode(__uint8_t *in, size_t len, char *out) {
+size_t b64Encode(uint8_t *in, size_t len, char *out) {
     assert(in != NULL && len != 0 && out != NULL);
 
     size_t idx = 0;
     int i = 0;
     while (i+2 < len) {
-        __uint32_t g = (in[i] << 16) | (in[i+1] << 8) | in[i+2];
+        uint32_t g = (in[i] << 16) | (in[i+1] << 8) | in[i+2];
         i += 3;
 
         out[idx++] = b64_et[(g >> 18) & 0b111111];
@@ -61,14 +59,14 @@ size_t b64Encode(__uint8_t *in, size_t len, char *out) {
     size_t rem = len - i;
 
     if (rem == 1) {
-        __uint32_t g = in[i] << 16;
+        uint32_t g = in[i] << 16;
         out[idx++] = b64_et[(g >> 18) & 0b111111];
         out[idx++] = b64_et[(g >> 12) & 0b111111];
         out[idx++] = '=';
         out[idx++] = '=';
     }
     if (rem == 2) {
-        __uint32_t g = (in[i] << 16) | (in[i+1] << 8);
+        uint32_t g = (in[i] << 16) | (in[i+1] << 8);
         out[idx++] = b64_et[(g >> 18) & 0b111111];
         out[idx++] = b64_et[(g >> 12) & 0b111111];
         out[idx++] = b64_et[(g >> 6 ) & 0b111111];
@@ -78,17 +76,17 @@ size_t b64Encode(__uint8_t *in, size_t len, char *out) {
     return idx;
 }
 
-size_t b64Decode(char *in, size_t len, __uint8_t *out) {
+size_t b64Decode(char *in, size_t len, uint8_t *out) {
     assert(in != NULL && len != 0 && out != NULL);
 
     size_t idx = 0;
     for (size_t i = 0; i < len; i += 4) {
-        __uint8_t c1 = in[ i ] == '=' ? 0 : b64_dt[(__uint8_t)in[ i ]];
-        __uint8_t c2 = in[i+1] == '=' ? 0 : b64_dt[(__uint8_t)in[i+1]];
-        __uint8_t c3 = in[i+2] == '=' ? 0 : b64_dt[(__uint8_t)in[i+2]];
-        __uint8_t c4 = in[i+3] == '=' ? 0 : b64_dt[(__uint8_t)in[i+3]];
+        uint8_t c1 = in[ i ] == '=' ? 0 : b64_dt[(uint8_t)in[ i ]];
+        uint8_t c2 = in[i+1] == '=' ? 0 : b64_dt[(uint8_t)in[i+1]];
+        uint8_t c3 = in[i+2] == '=' ? 0 : b64_dt[(uint8_t)in[i+2]];
+        uint8_t c4 = in[i+3] == '=' ? 0 : b64_dt[(uint8_t)in[i+3]];
 
-        __uint32_t g = (c1 << 18) | (c2 << 12) | (c3 << 6) | c4;
+        uint32_t g = (c1 << 18) | (c2 << 12) | (c3 << 6) | c4;
 
         out[idx++] = (g >> 16) & 0b11111111;
 
@@ -99,7 +97,7 @@ size_t b64Decode(char *in, size_t len, __uint8_t *out) {
     return idx;
 }
 
-#endif DA_BASE64
+#endif // DA_BASE64
 
 #ifdef DA_MD5
 
@@ -367,8 +365,13 @@ typedef struct vec_meta_s {
 #define __VEC_GET_DATA(v) ((void *)((char *)(v) + sizeof(VecMeta)))
 
 void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear);
-void vecFree(void *data, bool do_purge);
+void vecFree(void *data, void (*free_fn)(void *));
 void __vecPurge(VecMeta *v);
+
+uint32_t vecLength(void *data);
+uint16_t vecCellSize(void *data);
+uint32_t vecCapacity(void *data);
+
 void vecSet(void *data, uint32_t idx, void *val);
 void *vecAt(void *data, uint32_t idx);
 
@@ -396,11 +399,16 @@ void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear) {
     return __VEC_GET_DATA(v);
 }
 
-void vecFree(void *data, bool do_purge) {
+void vecFree(void *data, void (*free_fn)(void *)) {
     if (!data) return;
 
     VecMeta *v = __VEC_GET_META(data);
-    if (do_purge) __vecPurge(v);
+    if (free_fn) {
+        for (size_t i = 0; i < v->length; i++) {
+            void *elem = (char *)__VEC_GET_DATA(v) + i * v->cell_size;
+            free_fn(*(void **)elem);
+        }
+    }
 
     if (v) free(v);
 }
@@ -408,6 +416,24 @@ void vecFree(void *data, bool do_purge) {
 void __vecPurge(VecMeta *v) {
     assert(v);
     memset(v, 0, (sizeof(VecMeta) + (v->capacity * v->cell_size)));
+}
+
+uint32_t vecLength(void *data) {
+    assert(data);
+    VecMeta *v = __VEC_GET_META(data);
+    return v->length;
+}
+
+uint32_t vecCapacity(void *data) {
+    assert(data);
+    VecMeta *v = __VEC_GET_META(data);
+    return v->capacity;
+}
+
+uint16_t vecCellSize(void *data) {
+    assert(data);
+    VecMeta *v = __VEC_GET_META(data);
+    return v->cell_size;
 }
 
 void vecSet(void *data, uint32_t idx, void *val) {
@@ -467,7 +493,7 @@ void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear) {
 
     if (do_clear) {
         memset(
-            __VEC_GET_DATA(v) + v->capacity * v->cell_size,
+            (char *)__VEC_GET_DATA(v) + v->capacity * v->cell_size,
             0, new_capacity * v->cell_size
         );
     }
@@ -789,23 +815,80 @@ char *strRev(char *s) {
 
 #ifdef DA_VECTOR
 
-Vec strSplit(const char *s, const char *delim);
-char *strJoin(const Vec *parts, const char *sep);
+char **strSplit(const char *s, const char delim);
+char *strJoin(const char **parts, const char *sep);
 
-Vec strLines(const char *s);
-Vec strWords(const char *s);
-Vec strChars(const char *s);
+char **strSplit(const char *s, const char delim) {
+    if (!s) return NULL;
 
-Vec strPartition(const char *s, const char *sep);
-Vec strSplitN(const char *s, const char *delim, size_t max_parts);
+    char needle[2] = { delim, '\0' };
+    uint32_t p_len = (uint32_t)strCount(s, needle) + 1;
+    if (p_len == 1) return NULL;
+
+    char **parts = (char **)vecNew(sizeof(char *), p_len, true);
+    if (!parts) return NULL;
+
+    const char *p = s;
+    size_t l = 0, r = 0;
+    while(*p) {
+        if (*p == delim) {
+            r = p - s;
+            char *tok = strSlice(s, l, r);
+            vecPush(parts, &tok);
+            l = r + 1;
+        }
+        p++;
+    }
+
+    r = p - s;
+    if (r > l) {
+        char *tok = strSlice(s, l, r);
+        vecPush(parts, &tok);
+    } else {
+        // trailing delim
+        char *tok = strDup("");
+        vecPush(parts, &tok);
+    }
+
+    return parts;
+}
+
+char *strJoin(const char **parts, const char *sep) {
+    uint32_t count = vecLength(parts);
+    if (count == 0) return NULL;
+
+    size_t sep_len = strlen(sep);
+    size_t total_len = 0;
+    
+    for (uint32_t i = 0; i < count; i++) {
+        char *s = *(char **)vecAt(parts, i);
+        total_len += strlen(s);
+        if (i < count - 1) total_len += sep_len;
+    }
+
+    char *joined = malloc(total_len + 1);
+    if (!joined) return NULL;
+
+    char *p = joined;
+    for (uint32_t i = 0; i < count; i++) {
+        char *s = *(char **)vecAt(parts, i);
+        size_t len = strlen(s);
+        memcpy(p, s, len);
+        p += len;
+
+        if (i < count - 1) {
+            memcpy(p, sep, sep_len);
+            p += sep_len;
+        }
+    }
+
+    *p = '\0';
+    return joined;
+}
 
 #else
 #warning "For {strSplit, strJoin, strLines, strWords, strCharsm strPartition nad strSplitN} you must define DA_VECTOR"
-
-#endif
-
-
-
+#endif // DA_VECTOR
 
 #endif // DA_STRINGS
 

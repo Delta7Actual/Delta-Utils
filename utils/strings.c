@@ -7,63 +7,25 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#define DA_STRINGS
-#define DA_BASE_64
 #define DA_VECTOR
-
+#define DA_STRINGS
 #include "../deltautils.h"
 
+
 int main(void) {
-    char s1[] = "   Hello World!  ";
-    char s2[] = "foo bar foo";
-    char s4[] = "abcabcabc";
-    char *tmp;
 
-    // Trim tests
-    printf("Original: '%s'\n", s1);
-    printf("Trim: '%s'\n", strTrim(strDup(s1)));
-    printf("TrimL: '%s'\n", strTrimL(strDup(s1)));
-    printf("TrimR: '%s'\n", strTrimR(strDup(s1)));
+    const char *test = "one,two,three,four,five";
+    char **parts = strSplit(test, ',');
 
-    // Replace test
-    tmp = strReplace(s2, "foo", "baz");
-    printf("Replace: '%s'\n", tmp);
-    free(tmp);
+    printf("Parts:\n");
+    for (uint32_t i = 0; i < vecLength(parts); i++) {
+        printf("%s\n", *(char **)vecAt(parts, i));
+    }
 
-    // ToLower / ToUpper
-    tmp = strDup("AbC123");
-    printf("ToLower: '%s'\n", strToLower(tmp));
-    free(tmp);
+    char *back = strJoin((const char **)parts, " | ");
+    printf("And now rejoined: %s\n", back);
 
-    tmp = strDup("AbC123");
-    printf("ToUpper: '%s'\n", strToUpper(tmp));
-    free(tmp);
-
-    // StartsWith / EndsWith
-    printf("StartsWith 'Hello'?: %d\n", strStartsWith("Hello World", "Hello"));
-    printf("EndsWith 'World'?: %d\n", strEndsWith("Hello World", "World"));
-
-    // Slice
-    tmp = strSlice("Hello World", 0, 5);
-    printf("Slice 0-5: '%s'\n", tmp);
-    free(tmp);
-
-    tmp = strSlice("Hello World", 6, 11);
-    printf("Slice 6-11: '%s'\n", tmp);
-    free(tmp);
-
-    // Count
-    printf("Count 'abc' in '%s': %zu\n", s4, strCount(s4, "abc"));
-
-    // Dup
-    tmp = strDup("duplicate me");
-    printf("Dup: '%s'\n", tmp);
-    free(tmp);
-
-    // Reverse
-    tmp = strDup("abcd");
-    printf("Reverse: '%s'\n", strRev(tmp));
-    free(tmp);
-
+    free(back);
+    vecFree(parts, free);
     return 0;
 }
