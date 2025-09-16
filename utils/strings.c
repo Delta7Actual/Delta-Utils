@@ -7,7 +7,6 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#define DA_VECTOR
 #define DA_STRINGS
 #include "../deltautils.h"
 

@@ -886,8 +886,6 @@ char *strJoin(const char **parts, const char *sep) {
     return joined;
 }
 
-#else
-#warning "For strSplit and strJoin you must define DA_VECTOR"
 #endif // DA_VECTOR
 
 #endif // DA_STRINGS
