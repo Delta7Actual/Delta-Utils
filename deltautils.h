@@ -887,7 +887,7 @@ char *strJoin(const char **parts, const char *sep) {
 }
 
 #else
-#warning "For {strSplit, strJoin, strLines, strWords, strCharsm strPartition nad strSplitN} you must define DA_VECTOR"
+#warning "For strSplit and strJoin you must define DA_VECTOR"
 #endif // DA_VECTOR
 
 #endif // DA_STRINGS
