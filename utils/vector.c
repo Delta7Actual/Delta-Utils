@@ -27,7 +27,7 @@ void *__vecPush(void *data, void *val);
 void *vecPop(void *data);
 
 #define vecReserve(d, cap, clr) ((d) = __vecReserve((d), (cap), (clr)))
-void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear);
+void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear);z
 
 void *vecInit(uint16_t cell_size, uint32_t capacity_opt, bool do_clear) {
     assert(cell_size > 0);

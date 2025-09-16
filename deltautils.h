@@ -1,19 +1,21 @@
 #ifndef DUTILITIES_H
 #define DUTILITIES_H
 
-#include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdint.h>
-#include <assert.h>
+#include <stdio.h>
 #include <stdbool.h>
+
+#include <string.h>
+#include <assert.h>
+#include <ctype.h>
 
 
 #ifdef DA_BASE64
 
-size_t b64decode(char *in, size_t len, uint8_t *out);
-size_t b64encode(uint8_t *in, size_t len, char *out);
+size_t b64Decode(char *in, size_t len, uint8_t *out);
+size_t b64Encode(uint8_t *in, size_t len, char *out);
 
 static const __uint8_t b64_dt[256] = {
     ['A'] =  0, ['B'] =  1, ['C'] =  2, ['D'] =  3,
@@ -41,7 +43,7 @@ static const char b64_et[65] =
     "abcdefghijklmnopqrstuvwxyz"
     "0123456789+/";
 
-size_t b64encode(__uint8_t *in, size_t len, char *out) {
+size_t b64Encode(__uint8_t *in, size_t len, char *out) {
     assert(in != NULL && len != 0 && out != NULL);
 
     size_t idx = 0;
@@ -76,7 +78,7 @@ size_t b64encode(__uint8_t *in, size_t len, char *out) {
     return idx;
 }
 
-size_t b64decode(char *in, size_t len, __uint8_t *out) {
+size_t b64Decode(char *in, size_t len, __uint8_t *out) {
     assert(in != NULL && len != 0 && out != NULL);
 
     size_t idx = 0;
@@ -101,7 +103,7 @@ size_t b64decode(char *in, size_t len, __uint8_t *out) {
 
 #ifdef DA_MD5
 
-void md5_digest(uint8_t *data, size_t len, uint8_t out[16]);
+void md5Digest(uint8_t *data, size_t len, uint8_t out[16]);
 
 #define AI 0x67452301
 #define BI 0xefcdab89
@@ -169,7 +171,7 @@ typedef struct {
     size_t         blen;
 } Context;
 
-void md5_init(Context *ctx) {
+void __md5Init(Context *ctx) {
     assert(ctx != NULL);
     memset(ctx, 0, sizeof(Context));
     ctx->a = AI;
@@ -178,7 +180,7 @@ void md5_init(Context *ctx) {
     ctx->d = DI;
 }
 
-void md5_handle_block(Context *ctx, uint8_t block[64]) {
+void __md5HandleBlock(Context *ctx, uint8_t block[64]) {
     assert(ctx != NULL && block != NULL);
 
     uint32_t M[16] = {0};
@@ -282,7 +284,7 @@ void md5_handle_block(Context *ctx, uint8_t block[64]) {
     #undef II
 }
 
-void md5_update_len(Context *ctx, uint8_t *in, size_t len, int update_len) {
+void __md5UpdateLen(Context *ctx, uint8_t *in, size_t len, int update_len) {
     assert(ctx != NULL && in != NULL);
 
     if (update_len) ctx->size += len; 
@@ -297,13 +299,13 @@ void md5_update_len(Context *ctx, uint8_t *in, size_t len, int update_len) {
         offset += copy;
 
         if (ctx->blen == 64) {
-            md5_handle_block(ctx, ctx->buff);
+            __md5HandleBlock(ctx, ctx->buff);
             ctx->blen = 0;
         }
     }
 
     while (len - offset >= 64) {
-        md5_handle_block(ctx, in + offset);
+        __md5HandleBlock(ctx, in + offset);
         offset += 64;
     }
 
@@ -313,8 +315,8 @@ void md5_update_len(Context *ctx, uint8_t *in, size_t len, int update_len) {
     }
 }
 
-void md5_update(Context *ctx, uint8_t *in, size_t len) {
-    md5_update_len(ctx, in, len, 1);
+void __md5Update(Context *ctx, uint8_t *in, size_t len) {
+    __md5UpdateLen(ctx, in, len, 1);
 }
 
 void md5_finalize(Context *ctx, char out[16]) {
@@ -322,14 +324,14 @@ void md5_finalize(Context *ctx, char out[16]) {
 
     uint8_t padding[64] = {0x80};
     size_t pad_len = (ctx->blen < 56) ? (56 - ctx->blen) : (120 - ctx->blen);
-    md5_update_len(ctx, padding, pad_len, 0); 
+    __md5UpdateLen(ctx, padding, pad_len, 0); 
 
     uint8_t length_bytes[8];
     uint64_t size_bits = ctx->size * 8;
     for (int i = 0; i < 8; i++) {
         length_bytes[i] = (uint8_t)((size_bits >> (8 * i)) & 0xFF);
     }
-    md5_update_len(ctx, length_bytes, 8, 0);
+    __md5UpdateLen(ctx, length_bytes, 8, 0);
 
     uint32_t state[4] = { ctx->a, ctx->b, ctx->c, ctx->d };
     for (int i = 0; i < 4; i++) {
@@ -344,10 +346,10 @@ void md5_finalize(Context *ctx, char out[16]) {
     memset(ctx->buff, 0, 64);
 }
 
-void md5_digest(uint8_t *data, size_t len, uint8_t out[16]) {
+void md5Digest(uint8_t *data, size_t len, uint8_t out[16]) {
     Context ctx = {0};
-    md5_init(&ctx);
-    md5_update(&ctx, data, len);
+    __md5Init(&ctx);
+    __md5Update(&ctx, data, len);
     md5_finalize(&ctx, (char *)out);
 }
 
@@ -414,7 +416,7 @@ void vecSet(void *data, uint32_t idx, void *val) {
     VecMeta *v = __VEC_GET_META(data);
     assert(idx < v->length);
 
-    char *p = (char *)(data + (idx * v->cell_size));
+    char *p = (char *)((char *)data + (idx * v->cell_size));
     memcpy(p, val, v->cell_size);
 }
 
@@ -510,8 +512,9 @@ typedef struct {
 #define ARG_END() \
     ((ArgSpec){NULL, NULL, NULL, NULL, DA_ARG_END, false})
 
+void parseArguments(ArgSpec *ctx, int argc, char **argv);
 
-bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
+static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     if (!argument) return false;
 
     // Check against l_rep
@@ -612,6 +615,199 @@ void parseArguments(ArgSpec *ctx, int argc, char **argv) {
 }
 
 #endif // DA_ARGS
+
+
+#ifdef DA_STRINGS
+
+char *strTrim(char *s);
+char *strLTrim(char *s);
+char *strRTrim(char *s);
+
+char *strReplace(const char *s, const char *needle, const char *replacement);
+char *strToLower(char *s);
+char *strToUpper(char *s);
+
+bool strStartsWith(const char *s, const char *prefix);
+bool strEndsWith(const char *s, const char *suffix);
+
+char *strSlice(const char *s, size_t start, size_t end);
+
+size_t strCount(const char *s, const char *needle);
+
+char *strDup(const char *s);
+char *strRev(char *s);
+
+char *strTrimL(char *s) {
+    if (!s) return s;
+
+    char *p = s;
+    while (*p && isspace((unsigned char)*p)) p++;
+
+    memmove(s, p, strlen(p) + 1);
+    return s;
+}
+
+char *strTrimR(char *s) {
+    if (!s) return s;
+
+    char *p = s + strlen(s) - 1;
+    while(p >= s && isspace((unsigned char)*p)) p--;
+
+    *(p + 1) = '\0';
+    return s;
+}
+
+char *strTrim(char *s) {
+    if (!s) return s;
+
+    strTrimL(s);
+    strTrimR(s);
+
+    return s;
+}
+
+char *strReplace(const char *s, const char *needle, const char *replacement) {
+    assert(s && needle && replacement);
+
+    size_t n_len = strlen(needle);
+    if (n_len == 0) return strDup(s);
+    size_t r_len = strlen(replacement);
+
+    size_t new_len = strlen(s) + ((r_len - n_len) * strCount(s, needle));
+    
+    char *out = malloc(new_len + 1);
+    if (!out) return NULL;
+
+    const char *src = s;
+    char *dst = out;
+    while (*src) {
+        if (strncmp(src, needle, n_len) == 0) {
+            memcpy(dst, replacement, r_len);
+            src += n_len;
+            dst += r_len;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+
+    *dst = '\0';
+    return out;
+}
+
+char *strToLower(char *s) {
+    if (!s) return s;
+
+    char *p = s;
+    while (*p) {
+        if (*p >= 'A' && *p <= 'Z') *p += 32;
+        p++;
+    }
+
+    return s;
+}
+
+char *strToUpper(char *s) {
+    if (!s) return s;
+
+    char *p = s;
+    while (*p) {
+        if (*p >= 'a' && *p <= 'z') *p -= 32;
+        p++;
+    }
+
+    return s;
+}
+
+bool strStartsWith(const char *s, const char *prefix) {
+    if (!s || !prefix) return false;
+    size_t s_len = strlen(s);
+    size_t pr_len = strlen(prefix);
+    
+    if (pr_len > s_len) return false;
+    return (strncmp(s, prefix, pr_len) == 0);
+}
+
+bool strEndsWith(const char *s, const char *suffix) {
+    if (!s || !suffix) return false;
+    size_t s_len = strlen(s);
+    size_t su_len = strlen(suffix);
+
+    if (su_len > s_len) return false;
+    return strncmp(s + s_len - su_len, suffix, su_len) == 0;
+}
+
+char *strSlice(const char *s, size_t start, size_t end) {
+    assert(s);
+
+    size_t s_len = strlen(s);
+    if (start >= s_len || start >= end) return strDup("");
+    if (end > s_len) end = s_len;
+
+    size_t len = end - start;
+    char *out = malloc(len + 1);
+
+    memcpy(out, s + start, len);
+    out[len] = '\0';
+
+    return out;
+}
+
+size_t strCount(const char *s, const char *needle) {
+    size_t n_len = strlen(needle);
+    size_t c = 0;
+
+    const char *p = s;
+    while((p = strstr(p, needle))) {
+        c++;
+        p += n_len;
+    }
+
+    return c;
+}
+
+char *strDup(const char *s) {
+    assert(s);
+    size_t len = strlen(s);
+    char *copy = malloc(len + 1);
+    if (!copy) return NULL;
+    memcpy(copy, s, len + 1);
+    return copy;
+}
+
+char *strRev(char *s) {
+    if (!s || strlen(s) <= 1) return s;
+
+    size_t l = 0, r = strlen(s) - 1;
+    while (l < r) {
+        char temp = s[l];
+        s[l++] = s[r];
+        s[r--] = temp;
+    }
+
+    return s;
+}
+
+#ifdef DA_VECTOR
+
+Vec strSplit(const char *s, const char *delim);
+char *strJoin(const Vec *parts, const char *sep);
+
+Vec strLines(const char *s);
+Vec strWords(const char *s);
+Vec strChars(const char *s);
+
+Vec strPartition(const char *s, const char *sep);
+Vec strSplitN(const char *s, const char *delim, size_t max_parts);
+
+#else
+#warning "For {strSplit, strJoin, strLines, strWords, strCharsm strPartition nad strSplitN} you must define DA_VECTOR"
+
+#endif
+
+
+
+
+#endif // DA_STRINGS
 
 
 #endif
