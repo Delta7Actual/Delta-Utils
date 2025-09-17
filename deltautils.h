@@ -1,5 +1,55 @@
-#ifndef DUTILITIES_H
-#define DUTILITIES_H
+/* =====================================================================
+ *
+ * "deltautils.h" — version 1.0.0
+ * General-purpose utility library for C
+ *
+ * Source Code: https://github.com/Delta7Actual/Delta-Utils
+ * Created and maintained by Dror Sheffer
+ *
+ * Licensed under the MIT License.
+ * See the accompanying LICENSE file for full terms.
+ *
+ * =====================================================================
+ *
+ * HOW TO USE:
+ *
+ * This library is modular. Define the modules you need before
+ * including the header file. Like so:
+ *
+ *     #define DU_EXAMPLE
+ *     #include "deltautils.h"
+ *
+ * You can include multiple modules by defining them one after another
+ * before including the header:
+ *
+ *     #define DU_BASE64
+ *     #define DU_VECTOR
+ *     #define DU_STRINGS
+ *     #include "deltautils.h"
+ *
+ * =====================================================================
+ * 
+ * MODULE LIST:
+ * 
+ * -   DU_BASE64  | base64 Encoding and decoding
+ * -   DU_MD5     | md5 Hashing and digesting
+ * -   DU_VECTOR  | Vector operations
+ * -   DU_ARGS    | CLI argument handling
+ * -   DU_STRINGS | Expanded string operations
+ * -   DU_TUI     | Terminal UI functionality
+ * 
+ * =====================================================================
+ */
+
+
+#ifndef DELTAUTILS_H
+#define DELTAUTILS_H
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -10,10 +60,179 @@
 #include <ctype.h>
 
 
-#ifdef DA_BASE64
+#ifdef DU_BASE64
 
-size_t b64Decode(char *in, size_t len, uint8_t *out);
+// Encodes binary data into Base64.
+// Parameters:
+//   in  - input byte array
+//   len - length of input
+//   out - output buffer (must be large enough)
+// Returns: number of bytes written to 'out'
 size_t b64Encode(uint8_t *in, size_t len, char *out);
+
+// Decodes Base64 string into binary data.
+// Parameters:
+//   in  - Base64 encoded string
+//   len - length of input string
+//   out - output buffer
+// Returns: number of bytes written to 'out'
+size_t b64Decode(char *in, size_t len, uint8_t *out);
+
+#endif // DU_BASE64
+
+
+#ifdef DU_MD5
+
+// Computes the MD5 digest of a data block.
+// Parameters:
+//   data - input data
+//   len  - length of input data
+//   out  - output buffer of 16 bytes to hold MD5 digest
+void md5Digest(uint8_t *data, size_t len, uint8_t out[16]);
+
+#endif // DU_MD5
+
+
+#ifdef DU_VECTOR
+
+// Allocates a new vector.
+// Parameters:
+//   cell_size    - size of each element in bytes
+//   capacity_opt - initial capacity (0 = default)
+//   do_clear     - whether to zero-initialize memory
+// Returns: pointer to the new vector
+void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear);
+
+// Frees a vector.
+// Parameters:
+//   data    - pointer to vector
+//   free_fn - optional function to free each element
+void vecFree(void *data, void (*free_fn)(void *));
+
+// Returns the number of elements currently in the vector.
+uint32_t vecLength(void *data);
+
+// Returns the size in bytes of each element.
+uint16_t vecCellSize(void *data);
+
+// Returns the current allocated capacity of the vector.
+uint32_t vecCapacity(void *data);
+
+// Sets an element at a specific index.
+// Parameters:
+//   data - vector pointer
+//   idx  - index of the element
+//   val  - pointer to the new value
+void vecSet(void *data, uint32_t idx, void *val);
+
+// Returns a pointer to the element at the specified index.
+// Parameters:
+//   data - vector pointer
+//   idx  - index of the element
+// Returns: pointer to element
+void *vecAt(void *data, uint32_t idx);
+
+// Pushes a new element to the end of the vector, growing if needed.
+// Usage: vecPush(vec, &value);
+#define vecPush(d, val) ((d) = __vecPush((d), (val)))
+
+// Pops the last element from the vector.
+// Returns: pointer to the popped element
+void *vecPop(void *data);
+
+// Reserves capacity for the vector.
+// Parameters:
+//   d   - vector pointer
+//   cap - new desired capacity
+//   clr - whether to zero-initialize new elements
+#define vecReserve(d, cap, clr) ((d) = __vecReserve((d), (cap), (clr)))
+
+#endif // DU_VECTOR
+
+
+#ifdef DU_ARGS
+
+#define ARG_BOOL(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_BOL, (ir) })
+
+#define ARG_INT(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_INT, (ir) })
+
+#define ARG_DOUBLE(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_DBL, (ir) })
+
+#define ARG_STRING(sr, lr, o, h, ir) \
+    ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_STR, (ir) })
+
+#define ARG_END() \
+    ((ArgSpec){NULL, NULL, NULL, NULL, DU_ARG_END, false})
+
+void parseArgs(ArgSpec *ctx, int argc, char **argv);
+
+#endif // DU_ARGS
+
+
+#ifdef DU_STRINGS
+
+// Removes whitespace from both ends of the string in-place.
+char *strTrim(char *s);
+
+// Removes whitespace from the start of the string in-place.
+char *strLTrim(char *s);
+
+// Removes whitespace from the end of the string in-place.
+char *strRTrim(char *s);
+
+// Replaces all occurrences of `needle` in `s` with `replacement`.
+// Returns a newly allocated string; caller must free.
+char *strReplace(const char *s, const char *needle, const char *replacement);
+
+// Converts the string to lowercase in-place.
+char *strToLower(char *s);
+
+// Converts the string to uppercase in-place.
+char *strToUpper(char *s);
+
+// Checks if the string starts with the given prefix.
+// Returns true if it does, false otherwise.
+bool strStartsWith(const char *s, const char *prefix);
+
+// Checks if the string ends with the given suffix.
+// Returns true if it does, false otherwise.
+bool strEndsWith(const char *s, const char *suffix);
+
+// Returns a newly allocated substring from `start` to `end` (exclusive).
+// Negative indices count from the end of the string.
+char *strSlice(const char *s, size_t start, size_t end);
+
+// Counts the number of occurrences of `needle` in `s`.
+size_t strCount(const char *s, const char *needle);
+
+// Returns a newly allocated copy of the string.
+char *strDup(const char *s);
+
+// Reverses the string in-place.
+char *strRev(char *s);
+
+#ifdef DU_VECTOR
+// --------------------
+// In order to use this functionality you must define DU_VECTOR
+// --------------------
+
+// Splits the string `s` by delimiter `delim`.
+// Returns a NULL-terminated array of strings; caller must free each element and the array.
+char **strSplit(const char *s, const char delim);
+
+// Joins an array of strings `parts` into a single string, using `sep` as separator.
+// Returns a newly allocated string; caller must free.
+char *strJoin(const char **parts, const char *sep);
+
+#endif // DU_VECTOR
+
+#endif // DU_STRINGS
+
+
+#ifdef DU_BASE64
 
 static const uint8_t b64_dt[256] = {
     ['A'] =  0, ['B'] =  1, ['C'] =  2, ['D'] =  3,
@@ -50,26 +269,26 @@ size_t b64Encode(uint8_t *in, size_t len, char *out) {
         uint32_t g = (in[i] << 16) | (in[i+1] << 8) | in[i+2];
         i += 3;
 
-        out[idx++] = b64_et[(g >> 18) & 0b111111];
-        out[idx++] = b64_et[(g >> 12) & 0b111111];
-        out[idx++] = b64_et[(g >> 6 ) & 0b111111];
-        out[idx++] = b64_et[g & 0b111111];
+        out[idx++] = b64_et[(g >> 18) & 0xF];
+        out[idx++] = b64_et[(g >> 12) & 0xF];
+        out[idx++] = b64_et[(g >> 6 ) & 0xF];
+        out[idx++] = b64_et[g & 0xF];
     }
 
     size_t rem = len - i;
 
     if (rem == 1) {
         uint32_t g = in[i] << 16;
-        out[idx++] = b64_et[(g >> 18) & 0b111111];
-        out[idx++] = b64_et[(g >> 12) & 0b111111];
+        out[idx++] = b64_et[(g >> 18) & 0xF];
+        out[idx++] = b64_et[(g >> 12) & 0xF];
         out[idx++] = '=';
         out[idx++] = '=';
     }
     if (rem == 2) {
         uint32_t g = (in[i] << 16) | (in[i+1] << 8);
-        out[idx++] = b64_et[(g >> 18) & 0b111111];
-        out[idx++] = b64_et[(g >> 12) & 0b111111];
-        out[idx++] = b64_et[(g >> 6 ) & 0b111111];
+        out[idx++] = b64_et[(g >> 18) & 0xF];
+        out[idx++] = b64_et[(g >> 12) & 0xF];
+        out[idx++] = b64_et[(g >> 6 ) & 0xF];
         out[idx++] = '=';
     }
 
@@ -88,20 +307,18 @@ size_t b64Decode(char *in, size_t len, uint8_t *out) {
 
         uint32_t g = (c1 << 18) | (c2 << 12) | (c3 << 6) | c4;
 
-        out[idx++] = (g >> 16) & 0b11111111;
+        out[idx++] = (g >> 16) & 0xFF;
 
-        if (in[i+2] != '=') out[idx++] = (g >> 8) & 0b11111111;
-        if (in[i+3] != '=') out[idx++] = g & 0b11111111;
+        if (in[i+2] != '=') out[idx++] = (g >> 8) & 0xFF;
+        if (in[i+3] != '=') out[idx++] = g & 0xFF;
     }
 
     return idx;
 }
 
-#endif // DA_BASE64
+#endif // DU_BASE64
 
-#ifdef DA_MD5
-
-void md5Digest(uint8_t *data, size_t len, uint8_t out[16]);
+#ifdef DU_MD5
 
 #define AI 0x67452301
 #define BI 0xefcdab89
@@ -351,9 +568,9 @@ void md5Digest(uint8_t *data, size_t len, uint8_t out[16]) {
     md5_finalize(&ctx, (char *)out);
 }
 
-#endif // DA_MD5
+#endif // DU_MD5
 
-#ifdef DA_VECTOR
+#ifdef DU_VECTOR
 
 typedef struct vec_meta_s {
     uint32_t  capacity;
@@ -364,23 +581,8 @@ typedef struct vec_meta_s {
 #define __VEC_GET_META(d) ((VecMeta *)((char *)(d) - sizeof(VecMeta)))
 #define __VEC_GET_DATA(v) ((void *)((char *)(v) + sizeof(VecMeta)))
 
-void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear);
-void vecFree(void *data, void (*free_fn)(void *));
 void __vecPurge(VecMeta *v);
-
-uint32_t vecLength(void *data);
-uint16_t vecCellSize(void *data);
-uint32_t vecCapacity(void *data);
-
-void vecSet(void *data, uint32_t idx, void *val);
-void *vecAt(void *data, uint32_t idx);
-
-#define vecPush(d, val) ((d) = __vecPush((d), (val)))
 void *__vecPush(void *data, void *val);
-
-void *vecPop(void *data);
-
-#define vecReserve(d, cap, clr) ((d) = __vecReserve((d), (cap), (clr)))
 void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear);
 
 void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear) {
@@ -501,17 +703,17 @@ void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear) {
     return __VEC_GET_DATA(v);
 }
 
-#endif // DA_VECTOR
+#endif // DU_VECTOR
 
 
-#ifdef DA_ARGS
+#ifdef DU_ARGS
 
 typedef enum {
-    DA_ARG_BOL, 
-    DA_ARG_INT, 
-    DA_ARG_DBL, 
-    DA_ARG_STR, 
-    DA_ARG_END
+    DU_ARG_BOL, 
+    DU_ARG_INT, 
+    DU_ARG_DBL, 
+    DU_ARG_STR, 
+    DU_ARG_END
 } ArgType;
 
 typedef struct {
@@ -523,22 +725,6 @@ typedef struct {
     bool       is_req;
 } ArgSpec;
 
-#define ARG_BOOL(sr, lr, o, h, ir) \
-    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_BOL, (ir) })
-
-#define ARG_INT(sr, lr, o, h, ir) \
-    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_INT, (ir) })
-
-#define ARG_DOUBLE(sr, lr, o, h, ir) \
-    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_DBL, (ir) })
-
-#define ARG_STRING(sr, lr, o, h, ir) \
-    ((ArgSpec){ (sr), (lr), (h), (o), DA_ARG_STR, (ir) })
-
-#define ARG_END() \
-    ((ArgSpec){NULL, NULL, NULL, NULL, DA_ARG_END, false})
-
-void parseArguments(ArgSpec *ctx, int argc, char **argv);
 
 static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     if (!argument) return false;
@@ -585,21 +771,21 @@ static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     return false;
 }
 
-void parseArguments(ArgSpec *ctx, int argc, char **argv) {
+void parseArgs(ArgSpec *ctx, int argc, char **argv) {
     if (!ctx || argc == 1) return;
 
     for (int i = 1; i < argc; i++) {
         char *argument = argv[i];
 
-        for (ArgSpec *spec = ctx; spec->type != DA_ARG_END; spec++) {
+        for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) {
             if (__isFlagDec(argument, spec->s_rep, spec->l_rep)) {
                 switch (spec->type) {
-                    case DA_ARG_BOL:
+                    case DU_ARG_BOL:
                         if (spec->out)
                             *(bool *)spec->out = true;
                         break;
                 
-                    case DA_ARG_INT: {
+                    case DU_ARG_INT: {
                         if (!spec->out) break;
                         char *val = strchr(argument, '=');
                         if (val) {
@@ -612,7 +798,7 @@ void parseArguments(ArgSpec *ctx, int argc, char **argv) {
                         break;
                     }
                 
-                    case DA_ARG_DBL: {
+                    case DU_ARG_DBL: {
                         if (!spec->out) break;
                         char *val = strchr(argument, '=');
                         if (val) {
@@ -625,7 +811,7 @@ void parseArguments(ArgSpec *ctx, int argc, char **argv) {
                         break;
                     }
                 
-                    case DA_ARG_STR: {
+                    case DU_ARG_STR: {
                         if (!spec->out) break;
                         if (i + 1 < argc) {
                             *(char **)spec->out = argv[++i];
@@ -640,28 +826,10 @@ void parseArguments(ArgSpec *ctx, int argc, char **argv) {
     }
 }
 
-#endif // DA_ARGS
+#endif // DU_ARGS
 
 
-#ifdef DA_STRINGS
-
-char *strTrim(char *s);
-char *strLTrim(char *s);
-char *strRTrim(char *s);
-
-char *strReplace(const char *s, const char *needle, const char *replacement);
-char *strToLower(char *s);
-char *strToUpper(char *s);
-
-bool strStartsWith(const char *s, const char *prefix);
-bool strEndsWith(const char *s, const char *suffix);
-
-char *strSlice(const char *s, size_t start, size_t end);
-
-size_t strCount(const char *s, const char *needle);
-
-char *strDup(const char *s);
-char *strRev(char *s);
+#ifdef DU_STRINGS
 
 char *strTrimL(char *s) {
     if (!s) return s;
@@ -813,10 +981,7 @@ char *strRev(char *s) {
     return s;
 }
 
-#ifdef DA_VECTOR
-
-char **strSplit(const char *s, const char delim);
-char *strJoin(const char **parts, const char *sep);
+#ifdef DU_VECTOR
 
 char **strSplit(const char *s, const char delim) {
     if (!s) return NULL;
@@ -886,16 +1051,21 @@ char *strJoin(const char **parts, const char *sep) {
     return joined;
 }
 
-#endif // DA_VECTOR
+#endif // DU_VECTOR
 
-#endif // DA_STRINGS
-
-
-#ifdef DA_TUI
+#endif // DU_STRINGS
 
 
+#ifdef DU_TUI
 
-#endif // DA_TUI
+/* Implementation to come. */
+
+#endif // DU_TUI
 
 
+#ifdef __cplusplus
+}
 #endif
+
+
+#endif // DELTAUTILS_H
