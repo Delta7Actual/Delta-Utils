@@ -2,7 +2,7 @@
 tester
 tester.c
 utils_src/
-.vscode
+.vscode/
 
 # Prerequisites
 *.d
