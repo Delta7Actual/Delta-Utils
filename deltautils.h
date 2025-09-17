@@ -152,21 +152,40 @@ void *vecPop(void *data);
 
 #ifdef DU_ARGS
 
+// For the following macros:
+// - sr   = short option (e.g., "h")
+// - lr   = long option (e.g., "help")
+// - o    = pointer to storage for the value
+// - h    = help description
+// - ir   = whether the argument is required
+
+// ARG_BOOL: Define a boolean flag argument.
 #define ARG_BOOL(sr, lr, o, h, ir) \
     ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_BOL, (ir) })
 
+// ARG_INT: Define an integer argument.
 #define ARG_INT(sr, lr, o, h, ir) \
     ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_INT, (ir) })
 
+// ARG_DOUBLE: Define a floating-point argument.
 #define ARG_DOUBLE(sr, lr, o, h, ir) \
     ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_DBL, (ir) })
 
+// ARG_STRING: Define a string argument.
 #define ARG_STRING(sr, lr, o, h, ir) \
     ((ArgSpec){ (sr), (lr), (h), (o), DU_ARG_STR, (ir) })
 
+// ARG_END: Marks the end of the argument specification array.
+// Must be placed as the last element in ArgSpec array.
 #define ARG_END() \
     ((ArgSpec){NULL, NULL, NULL, NULL, DU_ARG_END, false})
 
+// parseArgs: Parses command-line arguments according to the given specification array.
+// ctx    = pointer to ArgSpec array describing expected arguments
+// argc   = number of command-line arguments
+// argv   = array of command-line arguments
+// Populates the storage pointers in each ArgSpec as arguments are found.
+// May print errors or help messages if required arguments are missing.
 void parseArgs(ArgSpec *ctx, int argc, char **argv);
 
 #endif // DU_ARGS
