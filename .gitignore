@@ -1,8 +1,6 @@
 # Custom
-tester
-tester.c
-utils_src/
 .vscode/
+build/
 
 # Prerequisites
 *.d

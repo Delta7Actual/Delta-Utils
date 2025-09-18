@@ -34,6 +34,7 @@
  * -   DU_BASE64  | base64 Encoding and decoding
  * -   DU_MD5     | md5 Hashing and digesting
  * -   DU_VECTOR  | Vector operations
+ * -   DU_HASHMAP | Hashmap operations
  * -   DU_ARGS    | CLI argument handling
  * -   DU_STRINGS | Expanded string operations
  * -   DU_TUI     | Terminal UI functionality
@@ -55,9 +56,18 @@ extern "C" {
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-#include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <ctype.h>
+#include <stdbool.h>
+
+
+/* =====================================================================
+ *
+ * Delta-Utils: DECLARATIONS AND DEFINITIONS
+ * 
+ * =====================================================================
+ */
 
 
 #ifdef DU_BASE64
@@ -249,6 +259,14 @@ char *strJoin(const char **parts, const char *sep);
 #endif // DU_VECTOR
 
 #endif // DU_STRINGS
+
+
+/* =====================================================================
+ *
+ * Delta-Utils: IMPLEMENTATION
+ * 
+ * =====================================================================
+ */
 
 
 #ifdef DU_BASE64
