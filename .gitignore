@@ -1,6 +1,8 @@
 # Custom
 .vscode/
 build/
+tester.c
+tester
 
 # Prerequisites
 *.d

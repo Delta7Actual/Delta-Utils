@@ -105,57 +105,72 @@ void md5Digest(uint8_t *data, size_t len, uint8_t out[16]);
 
 #ifdef DU_VECTOR
 
+// The vector struct
+typedef struct vec_meta_s {
+    uint32_t  capacity;  // How many cells can the vector hold before resizing
+    uint32_t    length;  // The length of the vector
+    uint16_t cell_size;  // The size of each cell in bytes
+    void *        data;  // A pointer to the data stored in the vector
+} Vector;
+
 // Allocates a new vector.
 // Parameters:
-//   cell_size    - size of each element in bytes
-//   capacity_opt - initial capacity (0 = default)
-//   do_clear     - whether to zero-initialize memory
-// Returns: pointer to the new vector
-void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear);
+//   cell_size    - size of each element in bytes (must be > 0)
+//   capacity_opt - initial capacity (0 = default of 4)
+//   do_clear     - whether to zero-initialize allocated memory
+// Returns: pointer to the new vector, or NULL on allocation failure.
+Vector *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear);
 
-// Frees a vector.
+// Frees a vector and its internal buffer.
 // Parameters:
-//   data    - pointer to vector
-//   free_fn - optional function to free each element
-void vecFree(void *data, void (*free_fn)(void *));
+//   vec        - pointer to vector
+//   purge_data - if true, zeroes out vector data before freeing
+void vecFree(Vector *vec, bool purge_data);
 
-// Returns the number of elements currently in the vector.
-uint32_t vecLength(void *data);
+// Returns the number of elements currently stored in the vector.
+uint32_t vecLength(const Vector *vec);
 
 // Returns the size in bytes of each element.
-uint16_t vecCellSize(void *data);
+uint16_t vecCellSize(const Vector *vec);
 
 // Returns the current allocated capacity of the vector.
-uint32_t vecCapacity(void *data);
+uint32_t vecCapacity(const Vector *vec);
 
 // Sets an element at a specific index.
 // Parameters:
-//   data - vector pointer
-//   idx  - index of the element
-//   val  - pointer to the new value
-void vecSet(void *data, uint32_t idx, void *val);
+//   vec - vector pointer
+//   idx - index of the element (must be < vecLength())
+//   val - pointer to the new value
+void vecSet(Vector *vec, uint32_t idx, const void *val);
 
 // Returns a pointer to the element at the specified index.
 // Parameters:
-//   data - vector pointer
-//   idx  - index of the element
+//   vec - vector pointer
+//   idx - index of the element (must be < vecLength())
 // Returns: pointer to element
-void *vecAt(void *data, uint32_t idx);
+void *vecAt(Vector *vec, uint32_t idx);
 
-// Pushes a new element to the end of the vector, growing if needed.
-// Usage: vecPush(vec, &value);
-#define vecPush(d, val) ((d) = __vecPush((d), (val)))
+// Pushes a new element to the end of the vector, growing capacity if needed.
+// Parameters:
+//   vec - vector pointer
+//   val - pointer to the value to append
+// Returns: true on success, false if reallocation failed.
+void vecPush(Vector *vec, const void *val);
 
 // Pops the last element from the vector.
-// Returns: pointer to the popped element
-void *vecPop(void *data);
-
-// Reserves capacity for the vector.
 // Parameters:
-//   d   - vector pointer
-//   cap - new desired capacity
-//   clr - whether to zero-initialize new elements
-#define vecReserve(d, cap, clr) ((d) = __vecReserve((d), (cap), (clr)))
+//   vec - vector pointer (must have at least 1 element)
+// Returns: pointer to the popped element inside the buffer.
+// NOTE: The returned pointer becomes invalid if the vector is resized.
+void *vecPop(Vector *vec);
+
+// Ensures the vector has at least 'new_capacity' slots allocated.
+// Parameters:
+//   vec          - vector pointer
+//   new_capacity - desired minimum capacity
+//   do_clear     - if true, zero-initializes newly allocated space
+// Returns: true on success, false if reallocation failed.
+void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear);
 
 #endif // DU_VECTOR
 
@@ -609,135 +624,86 @@ void md5Digest(uint8_t *data, size_t len, uint8_t out[16]) {
 
 #ifdef DU_VECTOR
 
-typedef struct vec_meta_s {
-    uint32_t  capacity;
-    uint32_t    length;
-    uint16_t cell_size;
-} VecMeta;
+void __vecPurge(Vector *vec) {
+    assert(vec);
+    memset(vec->data, 0, vec->cell_size * vec->capacity);
+}
 
-#define __VEC_GET_META(d) ((VecMeta *)((char *)(d) - sizeof(VecMeta)))
-#define __VEC_GET_DATA(v) ((void *)((char *)(v) + sizeof(VecMeta)))
-
-void __vecPurge(VecMeta *v);
-void *__vecPush(void *data, void *val);
-void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear);
-
-void *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear) {
+Vector *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear) {
     assert(cell_size > 0);
     if (capacity_opt == 0) capacity_opt = 4;
 
-    VecMeta *v = NULL;
-    if (!do_clear) v = malloc(sizeof(VecMeta) + (cell_size * capacity_opt));
-    else      v = calloc(1, (sizeof(VecMeta) + (cell_size * capacity_opt)));
+    Vector *v = (Vector *)malloc(sizeof(Vector));
     if (!v) return NULL;
 
     v->capacity = capacity_opt;
     v->length = 0;
     v->cell_size = cell_size;
-
-    return __VEC_GET_DATA(v);
-}
-
-void vecFree(void *data, void (*free_fn)(void *)) {
-    if (!data) return;
-
-    VecMeta *v = __VEC_GET_META(data);
-    if (free_fn) {
-        for (size_t i = 0; i < v->length; i++) {
-            void *elem = (char *)__VEC_GET_DATA(v) + i * v->cell_size;
-            free_fn(*(void **)elem);
-        }
-    }
-
-    if (v) free(v);
-}
-
-void __vecPurge(VecMeta *v) {
-    assert(v);
-    memset(v, 0, (sizeof(VecMeta) + (v->capacity * v->cell_size)));
-}
-
-uint32_t vecLength(void *data) {
-    assert(data);
-    VecMeta *v = __VEC_GET_META(data);
-    return v->length;
-}
-
-uint32_t vecCapacity(void *data) {
-    assert(data);
-    VecMeta *v = __VEC_GET_META(data);
-    return v->capacity;
-}
-
-uint16_t vecCellSize(void *data) {
-    assert(data);
-    VecMeta *v = __VEC_GET_META(data);
-    return v->cell_size;
-}
-
-void vecSet(void *data, uint32_t idx, void *val) {
-    assert(data);
-
-    VecMeta *v = __VEC_GET_META(data);
-    assert(idx < v->length);
-
-    char *p = (char *)((char *)data + (idx * v->cell_size));
-    memcpy(p, val, v->cell_size);
-}
-
-void *vecAt(void *data, uint32_t idx) {
-    assert(data);
-
-    VecMeta *v = __VEC_GET_META(data);
-    assert(idx < v->length);
-
-    return (void *)((char *)data + (idx * v->cell_size));
-}
-
-void *__vecPush(void *data, void *val) {
-    assert(data);
-
-    VecMeta *v = __VEC_GET_META(data);
     
+    v->data = malloc(v->cell_size * v->capacity);
+    if (!v->data) {
+        free(v);
+        return NULL;
+    }
+
+    if (do_clear) __vecPurge(v);
+    return v;
+}
+
+void vecFree(Vector *vec, bool purge_data) {
+    if (!vec) return;
+    if (purge_data) __vecPurge(vec);
+    free(vec->data);
+    free(vec);
+}
+
+void vecSet(Vector *vec, uint32_t idx, const void *val) {
+    assert(vec && idx < vec->length);
+    memcpy((char *)vec->data + (vec->cell_size * idx), val, vec->cell_size);
+}
+
+void *vecAt(Vector *vec, uint32_t idx) {
+    assert(vec && idx < vec->length);
+    return (void *)((char *)vec->data + (vec->cell_size * idx));
+}
+
+void vecPush(Vector *vec, const void *val) {
+    assert(vec);
+
     // Handle resizing
-    if (v->length == (v->capacity)) {
-        v->capacity *= 2;
-        VecMeta *temp = realloc(v, sizeof(VecMeta) + (v->capacity * v->cell_size));
-        if (!temp) return v;
-        v = temp;
-        data = __VEC_GET_DATA(v);
+    if (vec->length == vec->capacity) {
+        vec->capacity *= 2;
+        void *temp = realloc(vec->data, vec->cell_size * vec->capacity);
+        if (!temp) return;
+        vec->data = temp;
     }
 
-    memcpy((char *)data + (v->length * v->cell_size), val, v->cell_size);
-    v->length += 1;
-
-    return data;
+    vec->length++;
+    vecSet(vec, vec->length-1, val);
 }
 
-void *vecPop(void *data) {
-    assert(data);
+void *vecPop(Vector *vec) {
+    assert(vec && vec->length > 0);
 
-    VecMeta *v = __VEC_GET_META(data);
-    v->length -= 1;
-    return (void *)((char *)data + (v->length * v->cell_size));
+    void *val = vecAt(vec, vec->length-1);
+    vec->length--;
+
+    return val;
 }
 
-void *__vecReserve(void *data, uint32_t new_capacity, bool do_clear) {
-    assert(data);
+void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear) {
+    assert(vec);
 
-    VecMeta *v = __VEC_GET_META(data);
-    VecMeta *temp = realloc(v, sizeof(VecMeta) + (new_capacity * v->cell_size));
-    if (!temp) return v;
-    v = temp;
-
-    if (do_clear) {
-        memset(
-            (char *)__VEC_GET_DATA(v) + v->capacity * v->cell_size,
-            0, new_capacity * v->cell_size
-        );
-    }
-    v->capacity = new_capacity;
-    return __VEC_GET_DATA(v);
+    void *temp = realloc(vec->data, new_capacity * vec->cell_size);
+    if (!temp) return;
+    
+    if (do_clear) memset(
+        (char *)vec->data + vec->capacity * vec->cell_size,
+        0, (new_capacity - vec->capacity) * vec->cell_size
+    );
+    
+    vec->data = temp;
+    vec->capacity = new_capacity;
 }
 
 #endif // DU_VECTOR
