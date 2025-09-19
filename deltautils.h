@@ -1,7 +1,6 @@
 /* =====================================================================
  *
- * "deltautils.h" — version 1.0.0
- * General-purpose utility library for C
+ * "deltautils.h" - General-purpose utility library for C
  *
  * Source Code: https://github.com/Delta7Actual/Delta-Utils
  * Created and maintained by Dror Sheffer
@@ -686,6 +685,7 @@ size_t b64Decode(char *in, size_t len, uint8_t *out) {
 
 #endif // DU_BASE64
 
+
 #ifdef DU_HASH
 
 #define AI 0x67452301
@@ -938,6 +938,7 @@ void md5Digest(uint8_t *data, size_t len, uint8_t out[16]) {
 
 #endif // DU_HASH
 
+
 #ifdef DU_VECTOR
 
 void __vecPurge(Vector *vec) {
@@ -1027,24 +1028,6 @@ void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear) {
 
 #ifdef DU_ARGS
 
-typedef enum {
-    DU_ARG_BOL, 
-    DU_ARG_INT, 
-    DU_ARG_DBL, 
-    DU_ARG_STR, 
-    DU_ARG_END
-} ArgType;
-
-typedef struct {
-    const char *s_rep;
-    const char *l_rep;
-    const char  *help;
-    void         *out;
-    ArgType      type;
-    bool       is_req;
-} ArgSpec;
-
-
 static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     if (!argument) return false;
 
@@ -1081,7 +1064,7 @@ static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     }
 
     // Check whole command
-    else {
+    else if (l_rep) {
         if (strcmp(argument, l_rep) == 0) {
             return true;
         }
@@ -1090,14 +1073,23 @@ static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     return false;
 }
 
-void parseArgs(ArgSpec *ctx, int argc, char **argv) {
-    if (!ctx || argc == 1) return;
+bool parseArgs(ArgSpec *ctx, int argc, char **argv) {
+    if (!ctx || argc == 1) return false;
+
+    bool isGood = true;
+
+    int count = 0;
+    for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) count++;
+    bool *found = calloc(count, sizeof(bool));
 
     for (int i = 1; i < argc; i++) {
         char *argument = argv[i];
+        int idx = 0;
 
-        for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) {
+        for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++, idx++) {
             if (__isFlagDec(argument, spec->s_rep, spec->l_rep)) {
+                found[idx] = true;
+
                 switch (spec->type) {
                     case DU_ARG_BOL:
                         if (spec->out)
@@ -1113,6 +1105,7 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv) {
                             *(int *)spec->out = atoi(argv[++i]);
                         } else {
                             fprintf(stderr, "Error: expected integer value after %s\n", argument);
+                            isGood = false;
                         }
                         break;
                     }
@@ -1126,6 +1119,7 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv) {
                             *(double *)spec->out = atof(argv[++i]);
                         } else {
                             fprintf(stderr, "Error: expected double value after %s\n", argument);
+                            isGood = false;
                         }
                         break;
                     }
@@ -1136,13 +1130,79 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv) {
                             *(char **)spec->out = argv[++i];
                         } else {
                             fprintf(stderr, "Error: expected string value after %s\n", argument);
+                            isGood = false;
                         }
+                        break;
+                    }
+
+                    // Just to shut up the compiler warnings
+                    case DU_ARG_END: {
                         break;
                     }
                 }
             }
         }
     }
+
+    int idx = 0;
+    for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++, idx++) {
+        if (spec->is_req && !found[idx]) {
+            isGood = false;
+            fprintf(stderr, "Error: required argument --%s (or -%s) missing\n",
+                    spec->l_rep ? spec->l_rep : "",
+                    spec->s_rep ? spec->s_rep : "");
+        }
+    }
+
+    free(found);
+    return isGood;
+}
+
+void printHelp(const char *prog, ArgSpec *ctx) {
+    if (!ctx) return;
+
+    printf("Usage: %s [options]\n\n", prog);
+    printf("Options:\n");
+
+
+    for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) {
+        // Build option string
+        char optBuf[128] = {0};
+
+        switch (spec->type) {
+            case DU_ARG_INT:
+                strncat(optBuf, " <int>   ", sizeof(optBuf) - strlen(optBuf) - 1);
+                break;
+            case DU_ARG_DBL:
+                strncat(optBuf, " <double>", sizeof(optBuf) - strlen(optBuf) - 1);
+                break;
+            case DU_ARG_STR:
+                strncat(optBuf, " <string>", sizeof(optBuf) - strlen(optBuf) - 1);
+                break;
+            default:
+                break;
+        }
+
+        if (spec->s_rep) {
+            snprintf(optBuf + strlen(optBuf), sizeof(optBuf) - strlen(optBuf),
+                        "-%s", spec->s_rep);
+        }
+
+        if (spec->l_rep) {
+            if (strlen(optBuf) > 0) {
+                strncat(optBuf, ", ", sizeof(optBuf) - strlen(optBuf) - 1);
+            }
+            snprintf(optBuf + strlen(optBuf), sizeof(optBuf) - strlen(optBuf),
+                        "--%s", spec->l_rep);
+        }
+
+        printf("  %-20s %s%s\n",
+                optBuf,
+                spec->help ? spec->help : "",
+                spec->is_req ? " (required)" : "");
+    }
+
+    printf("\n");
 }
 
 #endif // DU_ARGS

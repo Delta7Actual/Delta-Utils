@@ -1,3 +1,18 @@
+/* =====================================================================
+ *
+ * This module is a part of:
+ * "deltautils.h" - General-purpose utility library for C
+ *
+ * Source Code: https://github.com/Delta7Actual/Delta-Utils
+ * Created and maintained by Dror Sheffer
+ *
+ * Licensed under the MIT License.
+ * See the accompanying LICENSE file for full terms.
+ *
+ * =====================================================================
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
