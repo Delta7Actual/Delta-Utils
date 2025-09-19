@@ -32,9 +32,9 @@
  * MODULE LIST:
  * 
  * -   DU_BASE64  | base64 Encoding and decoding
- * -   DU_MD5     | md5 Hashing and digesting
+ * -   DU_HASH    | Hashing and digesting
  * -   DU_VECTOR  | Vector operations
- * -   DU_HASHMAP | Hashmap operations
+ * -   DU_DICT    | Hashmap operations
  * -   DU_ARGS    | CLI argument handling
  * -   DU_STRINGS | Expanded string operations
  * -   DU_TUI     | Terminal UI functionality
@@ -71,41 +71,85 @@ extern "C" {
 
 
 #ifdef DU_BASE64
+/* =====================================================================
+ *
+ * BASE64 ENCODING AND DECODING
+ *
+ * =====================================================================
+ */
 
-// Encodes binary data into Base64.
-// Parameters:
-//   in  - input byte array
-//   len - length of input
-//   out - output buffer (must be large enough)
-// Returns: number of bytes written to 'out'
+
+/**
+ * b64Encode:
+ *   Encodes binary data into Base64.
+ *
+ * Parameters:
+ *   in  - pointer to input byte array
+ *   len - length of input in bytes
+ *   out - output buffer (must be large enough to hold encoded string)
+ *
+ * Returns:
+ *   Number of bytes written to 'out'
+ */
 size_t b64Encode(uint8_t *in, size_t len, char *out);
 
-// Decodes Base64 string into binary data.
-// Parameters:
-//   in  - Base64 encoded string
-//   len - length of input string
-//   out - output buffer
-// Returns: number of bytes written to 'out'
+/**
+ * b64Decode:
+ *   Decodes a Base64-encoded string into binary data.
+ *
+ * Parameters:
+ *   in  - pointer to Base64 string
+ *   len - length of input string
+ *   out - output buffer for decoded bytes
+ *
+ * Returns:
+ *   Number of bytes written to 'out'
+ */
 size_t b64Decode(char *in, size_t len, uint8_t *out);
 
 #endif // DU_BASE64
 
 
-#ifdef DU_MD5
+#ifdef DU_HASH
+/* =====================================================================
+ *
+ * HASH UTILITIES
+ *
+ * =====================================================================
+ */
 
-// Computes the MD5 digest of a data block.
-// Parameters:
-//   data - input data
-//   len  - length of input data
-//   out  - output buffer of 16 bytes to hold MD5 digest
+
+/**
+ * md5Digest:
+ *   Computes the MD5 digest of a data block.
+ *
+ * Parameters:
+ *   data - pointer to input data
+ *   len  - length of input data in bytes
+ *   out  - output buffer of 16 bytes to hold the MD5 digest
+ *
+ * Returns:
+ *   void (result stored in `out`)
+ */
 void md5Digest(uint8_t *data, size_t len, uint8_t out[16]);
 
-#endif // DU_MD5
+#endif // DU_HASH
 
 
 #ifdef DU_VECTOR
+/* =====================================================================
+ *
+ * VECTOR OPERATIONS
+ *
+ * =====================================================================
+ */
 
-// The vector struct
+
+/**
+ * Vector:
+ *   Generic dynamic array structure, storing metadata about allocated
+ *   capacity, element size, and current length.
+ */
 typedef struct vec_meta_s {
     uint32_t  capacity;  // How many cells can the vector hold before resizing
     uint32_t    length;  // The length of the vector
@@ -113,69 +157,169 @@ typedef struct vec_meta_s {
     void *        data;  // A pointer to the data stored in the vector
 } Vector;
 
-// Allocates a new vector.
-// Parameters:
-//   cell_size    - size of each element in bytes (must be > 0)
-//   capacity_opt - initial capacity (0 = default of 4)
-//   do_clear     - whether to zero-initialize allocated memory
-// Returns: pointer to the new vector, or NULL on allocation failure.
+/**
+ * vecNew:
+ *   Allocates and initializes a new vector.
+ *
+ * Parameters:
+ *   cell_size    - Size of each element in bytes (must be > 0)
+ *   capacity_opt - Initial capacity (0 = default of 4)
+ *   do_clear     - Whether to zero-initialize allocated memory
+ *
+ * Returns:
+ *   Pointer to the newly allocated vector, or NULL if allocation fails
+ */
 Vector *vecNew(uint16_t cell_size, uint32_t capacity_opt, bool do_clear);
 
-// Frees a vector and its internal buffer.
-// Parameters:
-//   vec        - pointer to vector
-//   purge_data - if true, zeroes out vector data before freeing
+
+/**
+ * vecFree:
+ *   Frees a vector and its internal data buffer.
+ *
+ * Parameters:
+ *   vec        - Pointer to vector
+ *   purge_data - If true, zeroes out the vector's internal data before freeing
+ */
 void vecFree(Vector *vec, bool purge_data);
 
-// Returns the number of elements currently stored in the vector.
+
+/**
+ * vecLength:
+ *   Returns the number of elements currently stored in the vector.
+ *
+ * Parameters:
+ *   vec - Vector pointer
+ *
+ * Returns:
+ *   Current length of the vector
+ */
 uint32_t vecLength(const Vector *vec);
 
-// Returns the size in bytes of each element.
+
+/**
+ * vecCellSize:
+ *   Returns the size in bytes of each element in the vector.
+ *
+ * Parameters:
+ *   vec - Vector pointer
+ *
+ * Returns:
+ *   Size of one element in bytes
+ */
 uint16_t vecCellSize(const Vector *vec);
 
-// Returns the current allocated capacity of the vector.
+
+/**
+ * vecCapacity:
+ *   Returns the current allocated capacity of the vector.
+ *
+ * Parameters:
+ *   vec - Vector pointer
+ *
+ * Returns:
+ *   Number of elements the vector can hold before resizing
+ */
 uint32_t vecCapacity(const Vector *vec);
 
-// Sets an element at a specific index.
-// Parameters:
-//   vec - vector pointer
-//   idx - index of the element (must be < vecLength())
-//   val - pointer to the new value
+
+/**
+ * vecSet:
+ *   Sets the value of an element at a specific index.
+ *
+ * Parameters:
+ *   vec - Vector pointer
+ *   idx - Index of the element (must be < vecLength(vec))
+ *   val - Pointer to the new value to store
+ */
 void vecSet(Vector *vec, uint32_t idx, const void *val);
 
-// Returns a pointer to the element at the specified index.
-// Parameters:
-//   vec - vector pointer
-//   idx - index of the element (must be < vecLength())
-// Returns: pointer to element
+
+/**
+ * vecAt:
+ *   Returns a pointer to the element at the specified index.
+ *
+ * Parameters:
+ *   vec - Vector pointer
+ *   idx - Index of the element (must be < vecLength(vec))
+ *
+ * Returns:
+ *   Pointer to the element inside the vector
+ */
 void *vecAt(Vector *vec, uint32_t idx);
 
-// Pushes a new element to the end of the vector, growing capacity if needed.
-// Parameters:
-//   vec - vector pointer
-//   val - pointer to the value to append
-// Returns: true on success, false if reallocation failed.
+
+/**
+ * vecPush:
+ *   Appends a new element to the end of the vector, resizing if needed.
+ *
+ * Parameters:
+ *   vec - Vector pointer
+ *   val - Pointer to the value to append
+ */
 void vecPush(Vector *vec, const void *val);
 
-// Pops the last element from the vector.
-// Parameters:
-//   vec - vector pointer (must have at least 1 element)
-// Returns: pointer to the popped element inside the buffer.
-// NOTE: The returned pointer becomes invalid if the vector is resized.
+
+/**
+ * vecPop:
+ *   Removes and returns the last element from the vector.
+ *
+ * Parameters:
+ *   vec - Vector pointer (must have at least 1 element)
+ *
+ * Returns:
+ *   Pointer to the popped element inside the buffer.
+ *   NOTE: This pointer becomes invalid if the vector is resized afterward.
+ */
 void *vecPop(Vector *vec);
 
-// Ensures the vector has at least 'new_capacity' slots allocated.
-// Parameters:
-//   vec          - vector pointer
-//   new_capacity - desired minimum capacity
-//   do_clear     - if true, zero-initializes newly allocated space
-// Returns: true on success, false if reallocation failed.
+
+/**
+ * vecReserve:
+ *   Ensures the vector has at least 'new_capacity' slots allocated.
+ *
+ * Parameters:
+ *   vec          - Vector pointer
+ *   new_capacity - Desired minimum capacity
+ *   do_clear     - If true, zero-initializes newly allocated space
+ */
 void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear);
 
 #endif // DU_VECTOR
 
 
 #ifdef DU_ARGS
+/* =====================================================================
+ *
+ * CLI ARGUMENT PARSING
+ *
+ * =====================================================================
+ */
+
+
+/**
+ * ArgType:
+ *   Enumerates the supported argument types.
+ */
+typedef enum {
+    DU_ARG_BOL,   // Boolean flag (true if present)
+    DU_ARG_INT,   // Integer argument
+    DU_ARG_DBL,   // Double/float argument
+    DU_ARG_STR,   // String argument
+    DU_ARG_END    // Marks the end of an ArgSpec array
+} ArgType;
+
+/**
+ * ArgSpec:
+ *   Describes one command-line argument option.
+ */
+typedef struct {
+    const char *s_rep;   // Short option name (e.g., "h") or NULL
+    const char *l_rep;   // Long option name (e.g., "help") or NULL
+    const char *help;    // Help text (can be NULL)
+    void       *out;     // Pointer to storage for the parsed value
+    ArgType     type;    // Argument type
+    bool        is_req;  // Whether this argument is required
+} ArgSpec;
 
 // For the following macros:
 // - sr   = short option (e.g., "h")
@@ -205,70 +349,242 @@ void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear);
 #define ARG_END() \
     ((ArgSpec){NULL, NULL, NULL, NULL, DU_ARG_END, false})
 
-// parseArgs: Parses command-line arguments according to the given specification array.
-// ctx    = pointer to ArgSpec array describing expected arguments
-// argc   = number of command-line arguments
-// argv   = array of command-line arguments
-// Populates the storage pointers in each ArgSpec as arguments are found.
-// May print errors or help messages if required arguments are missing.
-void parseArgs(ArgSpec *ctx, int argc, char **argv);
+
+/**
+ * parseArgs:
+ *   Parses command-line arguments according to the given specification array.
+ *
+ * Parameters:
+ *   ctx   - Pointer to an ArgSpec array describing expected arguments.
+ *           Must be terminated with ARG_END().
+ *   argc  - Argument count from main().
+ *   argv  - Argument vector from main().
+ *
+ *
+ * Returns:
+ *   true  if parsing succeeded with all requirements met.
+ *   false if an error occurred.
+ */
+bool parseArgs(ArgSpec *ctx, int argc, char **argv);
+
+
+/**
+ * printHelp:
+ *   Prints usage information for the program based on the argument
+ *   specification array.
+ *
+ * Parameters:
+ *   progName - Name of the program (usually argv[0]).
+ *   ctx      - Pointer to an ArgSpec array (must be terminated with ARG_END()).
+ */
+void printHelp(const char *progName, ArgSpec *ctx);
 
 #endif // DU_ARGS
 
 
 #ifdef DU_STRINGS
 
-// Removes whitespace from both ends of the string in-place.
+/* =====================================================================
+ *
+ * STRING UTILITIES
+ *
+ * =====================================================================
+ */
+
+
+/**
+ * strTrim:
+ *   Removes whitespace from both ends of the string in-place.
+ *
+ * Parameters:
+ *   s - string to trim
+ *
+ * Returns:
+ *   Pointer to the trimmed string (same as input)
+ */
 char *strTrim(char *s);
 
-// Removes whitespace from the start of the string in-place.
+
+/**
+ * strLTrim:
+ *   Removes whitespace from the start of the string in-place.
+ *
+ * Parameters:
+ *   s - string to trim
+ *
+ * Returns:
+ *   Pointer to the trimmed string (same as input)
+ */
 char *strLTrim(char *s);
 
-// Removes whitespace from the end of the string in-place.
+
+/**
+ * strRTrim:
+ *   Removes whitespace from the end of the string in-place.
+ *
+ * Parameters:
+ *   s - string to trim
+ *
+ * Returns:
+ *   Pointer to the trimmed string (same as input)
+ */
 char *strRTrim(char *s);
 
-// Replaces all occurrences of `needle` in `s` with `replacement`.
-// Returns a newly allocated string; caller must free.
+
+/**
+ * strReplace:
+ *   Replaces all occurrences of `needle` in `s` with `replacement`.
+ *
+ * Parameters:
+ *   s           - input string
+ *   needle      - substring to replace
+ *   replacement - string to insert
+ *
+ * Returns:
+ *   Newly allocated string; caller must free
+ */
 char *strReplace(const char *s, const char *needle, const char *replacement);
 
-// Converts the string to lowercase in-place.
+
+/**
+ * strToLower:
+ *   Converts the string to lowercase in-place.
+ *
+ * Parameters:
+ *   s - string to convert
+ *
+ * Returns:
+ *   Pointer to the converted string (same as input)
+ */
 char *strToLower(char *s);
 
-// Converts the string to uppercase in-place.
+
+/**
+ * strToUpper:
+ *   Converts the string to uppercase in-place.
+ *
+ * Parameters:
+ *   s - string to convert
+ *
+ * Returns:
+ *   Pointer to the converted string (same as input)
+ */
 char *strToUpper(char *s);
 
-// Checks if the string starts with the given prefix.
-// Returns true if it does, false otherwise.
+
+/**
+ * strStartsWith:
+ *   Checks if the string starts with the given prefix.
+ *
+ * Parameters:
+ *   s      - string to check
+ *   prefix - prefix to test
+ *
+ * Returns:
+ *   true if `s` starts with `prefix`, false otherwise
+ */
 bool strStartsWith(const char *s, const char *prefix);
 
-// Checks if the string ends with the given suffix.
-// Returns true if it does, false otherwise.
+
+/**
+ * strEndsWith:
+ *   Checks if the string ends with the given suffix.
+ *
+ * Parameters:
+ *   s      - string to check
+ *   suffix - suffix to test
+ *
+ * Returns:
+ *   true if `s` ends with `suffix`, false otherwise
+ */
 bool strEndsWith(const char *s, const char *suffix);
 
-// Returns a newly allocated substring from `start` to `end` (exclusive).
-// Negative indices count from the end of the string.
+
+/**
+ * strSlice:
+ *   Returns a newly allocated substring from `start` to `end` (exclusive).
+ *   Negative indices count from the end of the string.
+ *
+ * Parameters:
+ *   s     - input string
+ *   start - starting index
+ *   end   - ending index (exclusive)
+ *
+ * Returns:
+ *   Newly allocated substring; caller must free
+ */
 char *strSlice(const char *s, size_t start, size_t end);
 
-// Counts the number of occurrences of `needle` in `s`.
+
+/**
+ * strCount:
+ *   Counts the number of occurrences of `needle` in `s`.
+ *
+ * Parameters:
+ *   s      - string to search
+ *   needle - substring to count
+ *
+ * Returns:
+ *   Number of occurrences
+ */
 size_t strCount(const char *s, const char *needle);
 
-// Returns a newly allocated copy of the string.
+
+/**
+ * strDup:
+ *   Returns a newly allocated copy of the string.
+ *
+ * Parameters:
+ *   s - string to duplicate
+ *
+ * Returns:
+ *   Newly allocated string; caller must free
+ */
 char *strDup(const char *s);
 
-// Reverses the string in-place.
+
+/**
+ * strRev:
+ *   Reverses the string in-place.
+ *
+ * Parameters:
+ *   s - string to reverse
+ *
+ * Returns:
+ *   Pointer to the reversed string (same as input)
+ */
 char *strRev(char *s);
 
-#ifdef DU_VECTOR
-// --------------------
-// In order to use this functionality you must define DU_VECTOR
-// --------------------
 
-// Splits the string `s` by delimiter `delim`.
-// Returns a NULL-terminated array of strings; caller must free each element and the array.
+#ifdef DU_VECTOR
+/*
+*/
+
+/**
+ * strSplit:
+ *   Splits the string `s` by delimiter `delim`.
+ *
+ * Parameters:
+ *   s     - string to split
+ *   delim - delimiter character
+ *
+ * Returns:
+ *   NULL-terminated array of strings; caller must free each element and the array
+ */
 char **strSplit(const char *s, const char delim);
 
-// Joins an array of strings `parts` into a single string, using `sep` as separator.
-// Returns a newly allocated string; caller must free.
+
+/**
+ * strJoin:
+ *   Joins an array of strings `parts` into a single string, using `sep` as separator.
+ *
+ * Parameters:
+ *   parts - array of strings to join
+ *   sep   - separator string
+ *
+ * Returns:
+ *   Newly allocated string; caller must free
+ */
 char *strJoin(const char **parts, const char *sep);
 
 #endif // DU_VECTOR
@@ -370,7 +686,7 @@ size_t b64Decode(char *in, size_t len, uint8_t *out) {
 
 #endif // DU_BASE64
 
-#ifdef DU_MD5
+#ifdef DU_HASH
 
 #define AI 0x67452301
 #define BI 0xefcdab89
@@ -620,7 +936,7 @@ void md5Digest(uint8_t *data, size_t len, uint8_t out[16]) {
     md5_finalize(&ctx, (char *)out);
 }
 
-#endif // DU_MD5
+#endif // DU_HASH
 
 #ifdef DU_VECTOR
 

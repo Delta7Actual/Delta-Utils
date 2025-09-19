@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdbool.h>
 
 
@@ -9,6 +11,31 @@
  * =====================================================================
  */
 
+
+/**
+ * ArgType:
+ *   Enumerates the supported argument types.
+ */
+typedef enum {
+    DU_ARG_BOL,   // Boolean flag (true if present)
+    DU_ARG_INT,   // Integer argument
+    DU_ARG_DBL,   // Double/float argument
+    DU_ARG_STR,   // String argument
+    DU_ARG_END    // Marks the end of an ArgSpec array
+} ArgType;
+
+/**
+ * ArgSpec:
+ *   Describes one command-line argument option.
+ */
+typedef struct {
+    const char *s_rep;   // Short option name (e.g., "h") or NULL
+    const char *l_rep;   // Long option name (e.g., "help") or NULL
+    const char *help;    // Help text (can be NULL)
+    void       *out;     // Pointer to storage for the parsed value
+    ArgType     type;    // Argument type
+    bool        is_req;  // Whether this argument is required
+} ArgSpec;
 
 // For the following macros:
 // - sr   = short option (e.g., "h")
@@ -38,13 +65,35 @@
 #define ARG_END() \
     ((ArgSpec){NULL, NULL, NULL, NULL, DU_ARG_END, false})
 
-// parseArgs: Parses command-line arguments according to the given specification array.
-// ctx    = pointer to ArgSpec array describing expected arguments
-// argc   = number of command-line arguments
-// argv   = array of command-line arguments
-// Populates the storage pointers in each ArgSpec as arguments are found.
-// May print errors or help messages if required arguments are missing.
-void parseArgs(ArgSpec *ctx, int argc, char **argv);
+
+/**
+ * parseArgs:
+ *   Parses command-line arguments according to the given specification array.
+ *
+ * Parameters:
+ *   ctx   - Pointer to an ArgSpec array describing expected arguments.
+ *           Must be terminated with ARG_END().
+ *   argc  - Argument count from main().
+ *   argv  - Argument vector from main().
+ *
+ *
+ * Returns:
+ *   true  if parsing succeeded with all requirements met.
+ *   false if an error occurred.
+ */
+bool parseArgs(ArgSpec *ctx, int argc, char **argv);
+
+
+/**
+ * printHelp:
+ *   Prints usage information for the program based on the argument
+ *   specification array.
+ *
+ * Parameters:
+ *   progName - Name of the program (usually argv[0]).
+ *   ctx      - Pointer to an ArgSpec array (must be terminated with ARG_END()).
+ */
+void printHelp(const char *progName, ArgSpec *ctx);
 
 
 /* =====================================================================
@@ -53,24 +102,6 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv);
  * 
  * =====================================================================
  */
-
-
-typedef enum {
-    DU_ARG_BOL, 
-    DU_ARG_INT, 
-    DU_ARG_DBL, 
-    DU_ARG_STR, 
-    DU_ARG_END
-} ArgType;
-
-typedef struct {
-    const char *s_rep;
-    const char *l_rep;
-    const char  *help;
-    void         *out;
-    ArgType      type;
-    bool       is_req;
-} ArgSpec;
 
 
 static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
@@ -109,7 +140,7 @@ static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     }
 
     // Check whole command
-    else {
+    else if (l_rep) {
         if (strcmp(argument, l_rep) == 0) {
             return true;
         }
@@ -118,14 +149,23 @@ static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     return false;
 }
 
-void parseArgs(ArgSpec *ctx, int argc, char **argv) {
-    if (!ctx || argc == 1) return;
+bool parseArgs(ArgSpec *ctx, int argc, char **argv) {
+    if (!ctx || argc == 1) return false;
+
+    bool isGood = true;
+
+    int count = 0;
+    for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) count++;
+    bool *found = calloc(count, sizeof(bool));
 
     for (int i = 1; i < argc; i++) {
         char *argument = argv[i];
+        int idx = 0;
 
-        for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) {
+        for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++, idx++) {
             if (__isFlagDec(argument, spec->s_rep, spec->l_rep)) {
+                found[idx] = true;
+
                 switch (spec->type) {
                     case DU_ARG_BOL:
                         if (spec->out)
@@ -141,6 +181,7 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv) {
                             *(int *)spec->out = atoi(argv[++i]);
                         } else {
                             fprintf(stderr, "Error: expected integer value after %s\n", argument);
+                            isGood = false;
                         }
                         break;
                     }
@@ -154,6 +195,7 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv) {
                             *(double *)spec->out = atof(argv[++i]);
                         } else {
                             fprintf(stderr, "Error: expected double value after %s\n", argument);
+                            isGood = false;
                         }
                         break;
                     }
@@ -164,11 +206,77 @@ void parseArgs(ArgSpec *ctx, int argc, char **argv) {
                             *(char **)spec->out = argv[++i];
                         } else {
                             fprintf(stderr, "Error: expected string value after %s\n", argument);
+                            isGood = false;
                         }
+                        break;
+                    }
+
+                    // Just to shut up the compiler warnings
+                    case DU_ARG_END: {
                         break;
                     }
                 }
             }
         }
     }
+
+    int idx = 0;
+    for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++, idx++) {
+        if (spec->is_req && !found[idx]) {
+            isGood = false;
+            fprintf(stderr, "Error: required argument --%s (or -%s) missing\n",
+                    spec->l_rep ? spec->l_rep : "",
+                    spec->s_rep ? spec->s_rep : "");
+        }
+    }
+
+    free(found);
+    return isGood;
+}
+
+void printHelp(const char *prog, ArgSpec *ctx) {
+    if (!ctx) return;
+
+    printf("Usage: %s [options]\n\n", prog);
+    printf("Options:\n");
+
+
+    for (ArgSpec *spec = ctx; spec->type != DU_ARG_END; spec++) {
+        // Build option string
+        char optBuf[128] = {0};
+
+        switch (spec->type) {
+            case DU_ARG_INT:
+                strncat(optBuf, " <int>   ", sizeof(optBuf) - strlen(optBuf) - 1);
+                break;
+            case DU_ARG_DBL:
+                strncat(optBuf, " <double>", sizeof(optBuf) - strlen(optBuf) - 1);
+                break;
+            case DU_ARG_STR:
+                strncat(optBuf, " <string>", sizeof(optBuf) - strlen(optBuf) - 1);
+                break;
+            default:
+                break;
+        }
+
+        if (spec->s_rep) {
+            snprintf(optBuf + strlen(optBuf), sizeof(optBuf) - strlen(optBuf),
+                        "-%s", spec->s_rep);
+        }
+
+        if (spec->l_rep) {
+            if (strlen(optBuf) > 0) {
+                strncat(optBuf, ", ", sizeof(optBuf) - strlen(optBuf) - 1);
+            }
+            snprintf(optBuf + strlen(optBuf), sizeof(optBuf) - strlen(optBuf),
+                        "--%s", spec->l_rep);
+        }
+
+        printf("  %-20s %s%s\n",
+                optBuf,
+                spec->help ? spec->help : "",
+                spec->is_req ? " (required)" : "");
+    }
+
+    printf("\n");
 }
