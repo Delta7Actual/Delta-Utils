@@ -12,19 +12,27 @@
  *
  * HOW TO USE:
  *
- * This library is modular. Define the modules you need before
- * including the header file. Like so:
+ * DeltaUtils is a modular single-header library.
+ * 
+ * 1. In any source file that USES the utilities include
+ *    the specific modules to be used:
  *
- *     #define DU_EXAMPLE
- *     #include "deltautils.h"
+ *        #define DU_VECTOR
+ *        #define DU_ARGS
+ *        // ...
+ *        #include "deltautils.h"
  *
- * You can include multiple modules by defining them one after another
- * before including the header:
+ * 2. In *ONE* source file, include DU_IMPLEMENTATION
+ *    under the module definitions:
  *
- *     #define DU_BASE64
- *     #define DU_VECTOR
- *     #define DU_STRINGS
- *     #include "deltautils.h"
+ *        #define DU_VECTOR
+ *        #define DU_ARGS
+ *        // ...
+ *        #define DU_IMPLEMENTATION
+ *        #include "deltautils.h"
+ *
+ * The inclusion of DU_IMPLEMENTATION includes the implementation
+ * of all defined modules and therefore can only be included once.
  *
  * =====================================================================
  * 
