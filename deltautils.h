@@ -70,6 +70,8 @@ extern "C" {
 
 
 #ifdef DU_BASE64
+#ifndef DU_BASE64_H
+#define DU_BASE64_H
 /* =====================================================================
  *
  * BASE64 ENCODING AND DECODING
@@ -106,10 +108,13 @@ size_t b64Encode(uint8_t *in, size_t len, char *out);
  */
 size_t b64Decode(char *in, size_t len, uint8_t *out);
 
+#endif // DU_BASE64_H
 #endif // DU_BASE64
 
 
 #ifdef DU_HASH
+#ifndef DU_HASH_H
+#define DU_HASH_H
 /* =====================================================================
  *
  * HASH UTILITIES
@@ -132,10 +137,13 @@ size_t b64Decode(char *in, size_t len, uint8_t *out);
  */
 void md5Digest(uint8_t *data, size_t len, uint8_t out[16]);
 
+#endif // DU_HASH_H
 #endif // DU_HASH
 
 
 #ifdef DU_VECTOR
+#ifndef DU_VECTOR_H
+#define DU_VECTOR_H
 /* =====================================================================
  *
  * VECTOR OPERATIONS
@@ -283,10 +291,13 @@ void *vecPop(Vector *vec);
  */
 void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear);
 
+#endif // DU_VECTOR_H
 #endif // DU_VECTOR
 
 
 #ifdef DU_DICT
+#ifndef DU_DICT_H
+#define DU_DICT_H
 /* =====================================================================
  *
  * HASHMAP OPERATIONS
@@ -369,10 +380,13 @@ void *dictGet(Dictionary *dict, void *key, size_t key_len);
  */
 void dictFree(Dictionary *dict);
 
+#endif // DU_DICT_H
 #endif // DU_DICT
 
 
 #ifdef DU_ARGS
+#ifndef DU_ARGS_H
+#define DU_ARGS_H
 /* =====================================================================
  *
  * CLI ARGUMENT PARSING
@@ -464,11 +478,13 @@ bool parseArgs(ArgSpec *ctx, int argc, char **argv);
  */
 void printHelp(const char *progName, ArgSpec *ctx);
 
+#endif // DU_ARGS_H
 #endif // DU_ARGS
 
 
 #ifdef DU_STRINGS
-
+#ifndef DU_STRINGS_H
+#define DU_STRINGS_H
 /* =====================================================================
  *
  * STRING UTILITIES
@@ -674,6 +690,7 @@ char *strJoin(const char **parts, const char *sep);
 
 #endif // DU_VECTOR
 
+#endif // DU_STRINGS_H
 #endif // DU_STRINGS
 
 
@@ -820,6 +837,9 @@ void tuiClearScreen(void);
  * 
  * =====================================================================
  */
+
+
+#ifdef DU_IMPLEMENTATION
 
 
 #ifdef DU_BASE64
@@ -1249,7 +1269,7 @@ void vecReserve(Vector *vec, uint32_t new_capacity, bool do_clear) {
 #endif // DU_VECTOR
 
 
-#ifdef DU_DICT
+#ifdef DU_DICT_IMPL
 
 /*
  * This hash function is based on the DJB2 hash function
@@ -1349,7 +1369,7 @@ void dictFree(Dictionary *dict) {
 #endif // DU_DICT
 
 
-#ifdef DU_ARGS
+#ifdef DU_ARGS_IMPL
 
 static bool __isFlagDec(char *argument, const char *s_rep, const char *l_rep) {
     if (!argument) return false;
@@ -1802,6 +1822,9 @@ void tuiClearScreen(void) {
 }
 
 #endif // DU_TUI
+
+
+#endif // DU_IMPLEMENTATION
 
 
 #ifdef __cplusplus
