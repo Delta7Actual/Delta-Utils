@@ -16,6 +16,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
+#include <assert.h>
+#include <stdlib.h>
+
 
 
 /* =====================================================================
@@ -70,13 +74,30 @@ char *strRev(char *s);
 // In order to use this functionality you must define DU_VECTOR
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+// These are from the vector module.
+
+/* =====================================================================
+ *
+ * INCLUDED FUNCTIONS
+ * 
+ * =====================================================================
+ */
+
+
+// This is NOT the real Vector struct!
+// This is here to shut up the compiler and linter!
+
+// If you wish to use this implementation file make sure to also
+// add the vector.c implementation and comment this struct!
+typedef struct {size_t length} Vector;
+
 // Splits the string `s` by delimiter `delim`.
 // Returns a NULL-terminated array of strings; caller must free each element and the array.
-char **strSplit(const char *s, const char delim);
+Vector *strSplit(const char *s, const char delim);
 
 // Joins an array of strings `parts` into a single string, using `sep` as separator.
 // Returns a newly allocated string; caller must free.
-char *strJoin(const char **parts, const char *sep);
+char *strJoin(const Vector *parts, const char *sep);
 
 
 /* =====================================================================
@@ -241,14 +262,14 @@ char *strRev(char *s) {
 // In order to use this functionality you must define DU_VECTOR
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-char **strSplit(const char *s, const char delim) {
+Vector *strSplit(const char *s, const char delim) {
     if (!s) return NULL;
 
     char needle[2] = { delim, '\0' };
     uint32_t p_len = (uint32_t)strCount(s, needle) + 1;
     if (p_len == 1) return NULL;
 
-    char **parts = (char **)vecNew(sizeof(char *), p_len, true);
+    Vector *parts = vecNew(sizeof(char *), p_len, true);
     if (!parts) return NULL;
 
     const char *p = s;
@@ -276,15 +297,15 @@ char **strSplit(const char *s, const char delim) {
     return parts;
 }
 
-char *strJoin(const char **parts, const char *sep) {
-    uint32_t count = vecLength(parts);
+char *strJoin(const Vector *parts, const char *sep) {
+    uint32_t count = parts->length;
     if (count == 0) return NULL;
 
     size_t sep_len = strlen(sep);
     size_t total_len = 0;
     
     for (uint32_t i = 0; i < count; i++) {
-        char *s = *(char **)vecAt(parts, i);
+        char *s = *(char **)vecAt((Vector *)parts, i);
         total_len += strlen(s);
         if (i < count - 1) total_len += sep_len;
     }
@@ -294,7 +315,7 @@ char *strJoin(const char **parts, const char *sep) {
 
     char *p = joined;
     for (uint32_t i = 0; i < count; i++) {
-        char *s = *(char **)vecAt(parts, i);
+        char *s = *(char **)vecAt((Vector *)parts, i);
         size_t len = strlen(s);
         memcpy(p, s, len);
         p += len;
@@ -335,4 +356,4 @@ char *strJoin(const char **parts, const char *sep) {
  * SOFTWARE.
  * 
  * =====================================================================
- */ 
+ */
