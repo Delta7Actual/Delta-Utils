@@ -21,7 +21,6 @@
 #include <stdlib.h>
 
 
-
 /* =====================================================================
  *
  * INCLUDED FUNCTIONS
@@ -39,7 +38,7 @@ char *strLTrim(char *s);
 // Removes whitespace from the end of the string in-place.
 char *strRTrim(char *s);
 
-// Replaces all occurrences of `needle` in `s` with `replacement`.
+// Replaces all occurrences of 'needle' in 's' with 'replacement'.
 // Returns a newly allocated string; caller must free.
 char *strReplace(const char *s, const char *needle, const char *replacement);
 
@@ -57,11 +56,11 @@ bool strStartsWith(const char *s, const char *prefix);
 // Returns true if it does, false otherwise.
 bool strEndsWith(const char *s, const char *suffix);
 
-// Returns a newly allocated substring from `start` to `end` (exclusive).
+// Returns a newly allocated substring from 'start' to 'end' (exclusive).
 // Negative indices count from the end of the string.
 char *strSlice(const char *s, size_t start, size_t end);
 
-// Counts the number of occurrences of `needle` in `s`.
+// Counts the number of occurrences of 'needle' in 's'.
 size_t strCount(const char *s, const char *needle);
 
 // Returns a newly allocated copy of the string.
@@ -91,11 +90,11 @@ char *strRev(char *s);
 // add the vector.c implementation and comment this struct!
 typedef struct {size_t length} Vector;
 
-// Splits the string `s` by delimiter `delim`.
+// Splits the string 's' by delimiter 'delim'.
 // Returns a NULL-terminated array of strings; caller must free each element and the array.
 Vector *strSplit(const char *s, const char delim);
 
-// Joins an array of strings `parts` into a single string, using `sep` as separator.
+// Joins an array of strings 'parts' into a single string, using 'sep' as separator.
 // Returns a newly allocated string; caller must free.
 char *strJoin(const Vector *parts, const char *sep);
 
